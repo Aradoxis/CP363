@@ -14,9 +14,9 @@ from PyQt5.QtCore import *
 import sys
 #==================================================================
 # constants
-_user = 'rue'
-_password = 'password'
-_host = '192.168.2.182'
+_user = 'root'
+_password = 'MySQLLui1$'
+_host = '127.0.0.1'
 _database = 'spotifydb'
 #==================================================================
 # sql functions
@@ -109,6 +109,79 @@ class SignInDialog(QDialog):
             self.message.text = "Enter email to sign in:\nEmail is not registered. Try again."
             self.setLayout(self.layout)
         
+class SearchWidget(QWidget):
+    
+    def __init__(self, parent=None):
+        super(SearchWidget, self).__init__(parent)
+
+        self.layout = QVBoxLayout()
+        self.search_bar = QLineEdit()
+        self.results_list = QListWidget()
+
+        self.search_bar.setPlaceholderText("What do you want to play?")
+        self.search_bar.textChanged.connect(self.update_query_string)
+
+        self.layout.addWidget(self.search_bar)
+        self.layout.addWidget(self.results_list)
+        self.setLayout(self.layout)
+
+        # Timer for delayed execution so not to overload SQL
+        self.timer = QTimer()
+        self.timer.setInterval(500)  # Delay of 500ms
+        self.timer.timeout.connect(self.execute_queries)
+        self.timer.setSingleShot(True)  # Ensure the query runs only once per timer
+
+        #store queries for tracks then album then artist
+        self.track_query = ""
+        self.album_query = ""
+        self.artist_query = ""
+
+    def update_query_string(self, text):
+        """Updates the query string dynamically as the user types."""
+        self.timer.stop()
+        self.track_query = f"SELECT Name FROM track WHERE Name LIKE '%{text}%' LIMIT 10"
+        self.album_query = f"SELECT Name FROM album WHERE Name LIKE '%{text}%' LIMIT 10"
+        self.artist_query = f"SELECT Name FROM artist WHERE Name LIKE '%{text}%' LIMIT 10"
+
+        # for testing to makes sure queries are correct
+        print(self.track_query)
+        print(self.album_query)
+        print(self.artist_query)
+
+    
+        self.timer.start()  # Restart the timer
+
+    def execute_queries(self):
+        """Execute all stored query strings and display results with breaks between categories."""
+        self.timer.stop()  # Stop the timer to prevent duplicate execution
+
+        self.results_list.clear()  # Clear previous results
+
+        # Execute track query
+        if self.track_query.strip():
+            track_rows = execute_query(self.track_query)
+            if track_rows:
+                self.results_list.addItem("------ Tracks ------")  # Add a header for tracks
+                for row in track_rows:
+                    self.results_list.addItem(f"{row[0]}")
+
+        # Execute album query
+        if self.album_query.strip():
+            album_rows = execute_query(self.album_query)
+            if album_rows:
+                self.results_list.addItem("")  # Add an empty row as a visual gap
+                self.results_list.addItem("------ Albums ------")  # Add a header for albums
+                for row in album_rows:
+                    self.results_list.addItem(f"{row[0]}")
+
+        # Execute artist query
+        if self.artist_query.strip():
+            artist_rows = execute_query(self.artist_query)
+            if artist_rows:
+                self.results_list.addItem("")  # Add an empty row as a visual gap
+                self.results_list.addItem("------ Artists ------")  # Add a header for artists
+                for row in artist_rows:
+                    self.results_list.addItem(f"{row[0]}")
 
 #==================================================================
 # global variables
@@ -137,10 +210,12 @@ if conn and conn.is_connected():
 
     app = QApplication(sys.argv) # create application
 
-    sign_in = SignInDialog()
-    sign_in.exec()
+    #sign_in = SignInDialog()
+    #sign_in.exec()
 
     window = MainWindow() # create main UI window
+    window.setCentralWidget(SearchWidget())
+
     window.show()
     app.exec_()
 
@@ -265,13 +340,6 @@ if conn and conn.is_connected():
     # However I misunderstood at first and started making a CLI version of Spotify down below. It only shows the signed in user's current listening and library
         
     elif sign_in_type == 1:
-        
-        
-        
-        
-        
-        
-        
         
         # fetching currently playing
         query = f"SELECT Item_Type, TrackID, EpisodeID FROM queued_item q WHERE PlayerID = '{user_id}'"
