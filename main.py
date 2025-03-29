@@ -179,7 +179,12 @@ def set_focused_collection(type, id):
     for i in reversed(range(focusarea_layout.count())): 
         focusarea_layout.itemAt(i).widget().setParent(None)
     
+    global viewed_playlist_id, viewed_album_id, viewed_show_id
     if type == "Playlist":
+        viewed_playlist_id = id
+        viewed_album_id = None
+        viewed_show_id = None
+        
         playlist_name, playlist_description, playlist_image_link, rows = get_playlist_data(id)
         
         title_label = QLabel(playlist_name)
@@ -193,9 +198,14 @@ def set_focused_collection(type, id):
         
         for row in rows:
             tb = TrackButton(f"{row[2]:50} {row[3]:50} {row[4]:20} {row[5]} {row[6]:>10}", row[0])
+            tb.clicked.connect(tb.click_event)
             focusarea_layout.addWidget(tb)
         
     elif type == "Album":
+        viewed_playlist_id = None
+        viewed_album_id = id
+        viewed_show_id = None
+        
         album_name, album_date, album_type, album_image_link, artist_name, rows = get_album_data(id)
         
         title_label = QLabel(album_name)
@@ -211,9 +221,14 @@ def set_focused_collection(type, id):
                 tb = TrackButton(f"{row[1]:100}     {row[2]:20}     {row[3]:6}", row[0])
             else:
                 tb = TrackButton(f"{row[1]:100}                              {row[3]:6}", row[0])
+            tb.clicked.connect(tb.click_event)
             focusarea_layout.addWidget(tb)
             
     elif type == "Podcast":
+        viewed_playlist_id = None
+        viewed_album_id = None
+        viewed_show_id = id
+        
         show_name, show_about, show_image_link, rows = get_show_data(id)
         
         title_label = QLabel(show_name)
@@ -229,6 +244,20 @@ def set_focused_collection(type, id):
             eb = EpisodeButton(row[1], row[2], row[3], row[4], row[0])
             focusarea_layout.addWidget(eb)
 
+def set_underbar():
+    global current_listen_type, current_track_id, current_episode_id, current_track_name, current_artist_names, current_episode_name, current_show_name, current_duration, current_collection_type, current_album_id, current_playlist_id, current_show_id
+    current_listen_type, current_track_id, current_episode_id, current_track_name, current_artist_names, current_episode_name, current_show_name, current_duration = get_current_playing_state()
+    current_collection_type, current_album_id, current_playlist_id, current_show_id, playhead = get_player_state()
+    
+    if current_listen_type is not None:
+        if current_listen_type == "Track":
+            current_label.setText(f"{current_track_name} - {', '.join(current_artist_names)}")
+        elif current_listen_type == "Episode":
+            current_label.setText(f"{current_episode_name} - {current_show_name}")
+        trackbar.setMaximum(current_duration)
+        trackbar.setValue(playhead)
+    
+    
 #==================================================================
 # event handling functions
 
@@ -236,11 +265,11 @@ def update_search_query_string(text):
     """Updates the query string dynamically as the user types."""
     search_timer.stop()
     global track_query, album_query, artist_query, playlist_query, show_query
-    track_query = f"SELECT Name FROM track WHERE Name LIKE '%{text}%' LIMIT 10"
-    album_query = f"SELECT Name FROM album WHERE Name LIKE '%{text}%' LIMIT 10"
-    artist_query = f"SELECT Name FROM artist WHERE Name LIKE '%{text}%' LIMIT 10"
-    playlist_query = f"SELECT Name FROM playlist WHERE Name LIKE '%{text}%' LIMIT 10"
-    show_query = f"SELECT Name FROM shows WHERE Name LIKE '%{text}%' LIMIT 10"
+    track_query = f"SELECT TrackID, Name FROM track WHERE Name LIKE '%{text}%' LIMIT 10"
+    album_query = f"SELECT AlbumID, Name FROM album WHERE Name LIKE '%{text}%' LIMIT 10"
+    artist_query = f"SELECT ArtistID, Name FROM artist WHERE Name LIKE '%{text}%' LIMIT 10"
+    playlist_query = f"SELECT PlaylistID, Name FROM playlist WHERE Name LIKE '%{text}%' LIMIT 10"
+    show_query = f"SELECT ShowID, Name FROM shows WHERE Name LIKE '%{text}%' LIMIT 10"
 
     search_timer.start()  # Restart the timer
 
@@ -252,51 +281,68 @@ def execute_search_queries():
     
     search_timer.stop()  # Stop the timer to prevent duplicate execution
     
+    
     results_list = QListWidget() # make new list
 
     # Execute track query
     if track_query.strip():
         track_rows = execute_query(track_query)
         if track_rows:
-            results_list.addItem("------ Tracks ------")  # Add a header for tracks
+            title = QLabel("Songs") # Add a header for songs
+            title.setFont(subtitlefont)
+            focusarea_layout.addWidget(title)
             for row in track_rows:
-                results_list.addItem(f"{row[0]}")
+                rb = ResultButton(row[1], "Track", row[0])
+                rb.clicked.connect(rb.click_event)
+                focusarea_layout.addWidget(rb)
 
     # Execute artist query
     if artist_query.strip():
         artist_rows = execute_query(artist_query)
         if artist_rows:
-            results_list.addItem("")  # Add an empty row as a visual gap
-            results_list.addItem("------ Artists ------")  # Add a header for artists
+            title = QLabel("Artists") # Add a header for artists
+            title.setFont(subtitlefont)
+            focusarea_layout.addWidget(title)
             for row in artist_rows:
-                results_list.addItem(f"{row[0]}")
+                rb = ResultButton(row[1], "Artist", row[0])
+                rb.clicked.connect(rb.click_event)
+                focusarea_layout.addWidget(rb)
 
     # Execute album query
     if album_query.strip():
         album_rows = execute_query(album_query)
         if album_rows:
-            results_list.addItem("")  # Add an empty row as a visual gap
-            results_list.addItem("------ Albums ------")  # Add a header for albums
+            title = QLabel("Albums") # Add a header for albums
+            title.setFont(subtitlefont)
+            focusarea_layout.addWidget(title)
             for row in album_rows:
-                results_list.addItem(f"{row[0]}")
+                rb = ResultButton(row[1], "Album", row[0])
+                rb.clicked.connect(rb.click_event)
+                focusarea_layout.addWidget(rb)
                 
     # Execute playlist query
     if playlist_query.strip():
         playlist_rows = execute_query(playlist_query)
         if playlist_rows:
-            results_list.addItem("")  # Add an empty row as a visual gap
-            results_list.addItem("------ Playlists ------")  # Add a header for albums
+            title = QLabel("Playlists") # Add a header for plylists
+            title.setFont(subtitlefont)
+            focusarea_layout.addWidget(title)
             for row in playlist_rows:
-                results_list.addItem(f"{row[0]}")
+                rb = ResultButton(row[1], "Playlist", row[0])
+                rb.clicked.connect(rb.click_event)
+                focusarea_layout.addWidget(rb)
     
     # Execute show query
     if show_query.strip():
         show_rows = execute_query(show_query)
         if show_rows:
-            results_list.addItem("")  # Add an empty row as a visual gap
-            results_list.addItem("------ Shows ------")  # Add a header for albums
+            title = QLabel("Podcasts") # Add a header for podcasts
+            title.setFont(subtitlefont)
+            focusarea_layout.addWidget(title)
             for row in show_rows:
-                results_list.addItem(f"{row[0]}")
+                rb = ResultButton(row[1], "Podcast", row[0])
+                rb.clicked.connect(rb.click_event)
+                focusarea_layout.addWidget(rb)
     
     focusarea_layout.addWidget(results_list)
 
@@ -376,7 +422,29 @@ class TrackButton(QPushButton):
         self.id = id
     
     def click_event(self):
-        return
+        print("clicked")
+        if viewed_playlist_id is not None:
+            print("pl")
+            query = f"UPDATE player SET collection_type = 'Playlist', AlbumID = NULL, PlaylistID = '{viewed_playlist_id}', ShowID = NULL WHERE PlayerID = '{user_id}'" # change to new collection
+            execute_query(query)
+            query = f"DELETE FROM queued_item WHERE PlayerID = '{user_id}'" # delete old queue
+            execute_query(query)
+            query = f"INSERT INTO queued_item VALUES ('{user_id}', 0, 'Track', '{self.id}', NULL)" # add selected song
+            execute_query(query)
+            query = f"INSERT INTO queued_item (SELECT '{user_id}', RANK() OVER(ORDER BY RAND()), 'Track', t.TrackID, NULL FROM track t JOIN contains_p c ON t.TrackId = c.TrackID WHERE c.PlaylistID = '{viewed_playlist_id}' AND t.TrackID <> '{self.id}' LIMIT 4)" # add random songs from playlist
+            execute_query(query)
+        elif viewed_album_id is not None:
+            print("al")
+            query = f"UPDATE player SET collection_type = 'Playlist', AlbumID = '{viewed_album_id}', PlaylistID = NULL, ShowID = NULL WHERE PlayerID = '{user_id}'" # change to new collection
+            execute_query(query)
+            query = f"DELETE FROM queued_item WHERE PlayerID = '{user_id}'" # delete old queue
+            execute_query(query)
+            query = f"INSERT INTO queued_item VALUES ('{user_id}', 0, 'Track', '{self.id}', NULL)" # add selected song
+            execute_query(query)
+            query = f"INSERT INTO queued_item (SELECT '{user_id}', RANK() OVER(ORDER BY RAND()), 'Track', TrackID, NULL FROM track WHERE AlbumID = '{viewed_album_id}' AND TrackID <> '{self.id}' LIMIT 4)" # add random songs from album
+            execute_query(query)
+        set_underbar()
+        
 
 class EpisodeButton(QWidget):
     
@@ -438,6 +506,7 @@ email = None
 user_id = None
 username = None
 user_image_link = None
+curent_collection_type = None
 current_listen_type = None
 current_track_id = None
 current_episode_id = None
@@ -528,8 +597,15 @@ if conn and conn.is_connected():
     focusarea_layout = QVBoxLayout()
     sidebar = QWidget()
     focusarea = QScrollArea()
+    focusarea.setWidgetResizable(True)
+    focusarea_contents = QWidget()
+    focusarea_contents.setGeometry(QRect(0,0,380,280))
+    hlayout2 = QHBoxLayout(focusarea_contents)
+    hlayout2.addLayout(focusarea_layout)
+    focusarea.setWidget(focusarea_contents)
+    
     sidebar.setLayout(sidebar_layout)
-    focusarea.setLayout(focusarea_layout)
+    
     mainarea_layout.addWidget(sidebar)
     mainarea_layout.addWidget(focusarea)
     # main area pieces end
@@ -576,36 +652,28 @@ if conn and conn.is_connected():
     # sidebar pieces end
     
     # underbar pieces
-    current_listen_type, current_track_id, current_episode_id, current_track_name, current_artist_names, current_episode_name, current_show_name, current_duration = get_current_playing_state()
-    current_collection_type, current_album_id, current_playlist_id, current_show_id, playhead = get_player_state()
     current_label = QLabel()
     trackbar = QProgressBar()
-    if current_listen_type is not None:
-        if current_listen_type == "Track":
-            current_label.setText(f"{current_track_name} - {', '.join(current_artist_names)}")
-        elif current_listen_type == "Episode":
-            current_label.setText(f"{current_episode_name} - {current_show_name}")
-        trackbar.setMaximum(current_duration)
-        trackbar.setValue(playhead)
-    
     underbar_layout.addWidget(current_label)
     underbar_layout.addWidget(trackbar)
     underbar.setFixedHeight(100)
+    set_underbar()
     # underbar pieces end
     
     # focusarea pieces
     if current_collection_type is None:
         filler = QLabel("Get Started")
+        filler.setFont(titlefont)
         filler_subtext = QLabel("Search for something to listen to or chose something from your library.")
+        filler_subtext.setFont(subtitlefont)
+        focusarea_layout.addWidget(filler)
+        focusarea_layout.addWidget(filler_subtext)
     elif current_collection_type == "Playlist":
-        viewed_playlist_id = current_playlist_id
-        set_focused_collection(current_collection_type, viewed_playlist_id)
+        set_focused_collection(current_collection_type, current_playlist_id)
     elif current_collection_type == "Album":
-        viewed_album_id = current_album_id
-        set_focused_collection(current_collection_type, viewed_album_id)
+        set_focused_collection(current_collection_type, current_album_id)
     elif current_collection_type == "Podcast":
-        viewed_show_id = current_show_id
-        set_focused_collection(current_collection_type, viewed_show_id)
+        set_focused_collection(current_collection_type, current_show_id)
         
     
     # focusarea pieces end
