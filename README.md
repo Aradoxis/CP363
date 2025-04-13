@@ -1,6 +1,6 @@
 # Important details
 This is a program made for a university course assignment. It refers to a database that is not publicly accessible. This repository was made solely to allow the professor to download the program.
-# Installation instructions:
+# Installation instructions
 Download the zip file. Extract and place wherever in the directory you prefer. 
 You must have an installation of [Python](https://www.python.org/downloads/) with the following libraries installed: 
 - [mysql connector](https://dev.mysql.com/doc/connector-python/en/connector-python-installation.html)
@@ -13,7 +13,7 @@ Once they are installed, you must open the file named main.py and change the fol
 - 20 to your own database’s address.
  
 Once that is done, you simply have to navigate to the folder containing the `main.py` file in command prompt and enter: `python main.py`
-# Operation instructions:
+# Operation instructions
 The application is a very simple recreation of Spotify with bare minimum functionality. 
 
 Upon opening the program, enter the email of the account you wish to sign in as.
