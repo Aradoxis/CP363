@@ -5,7 +5,11 @@ You must have an installation of [Python](https://www.python.org/downloads/) wit
 - [PyQT5](https://pypi.org/project/PyQt5/)
 - [requests](https://pypi.org/project/requests/)
 
-Once they are installed, you must open the file named main.py and change lines 18 to your username, 19 to your password and 20 to your own database’s address. 
+Once they are installed, you must open the file named main.py and change the following lines:
+- 18 to your username
+- 19 to your password
+- 20 to your own database’s address.
+ 
 Once that is done, you simply have to navigate to the folder containing the `main.py` file in command prompt and enter: `python main.py`
 # Operation instructions:
 The application is a very simple recreation of Spotify with bare minimum functionality. 
