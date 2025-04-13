@@ -1,3 +1,5 @@
+# Important details
+This is a program made for a university course assignment. It refers to a database that is not publicly accessible. This repository was made solely to allow the professor to download the program.
 # Installation instructions:
 Download the zip file. Extract and place wherever in the directory you prefer. 
 You must have an installation of [Python](https://www.python.org/downloads/) with the following libraries installed: 
